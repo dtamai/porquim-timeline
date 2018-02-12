@@ -11,7 +11,7 @@
   },
   "scripts": {
     "postinstall": "elm-package install --yes",
-    "start": "elm-live PorquimTimeline.elm --output elm.js --open",
+    "start": "elm-live PorquimTimeline.elm --output elm.js --open --debug",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
