@@ -3,6 +3,8 @@ module PorquimTimeline exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import FormatNumber exposing (format)
+import FormatNumber.Locales exposing (spanishLocale)
 
 
 main : Program Never Model Msg
@@ -59,39 +61,21 @@ initialModel =
         ]
 
 
-snapshotTotal : Snapshot -> Float
-snapshotTotal snapshot =
-    snapshot.entries
+snapshotTotal : List SnapshotEntry -> Float
+snapshotTotal entries =
+    entries
         |> List.map .value
         |> List.sum
 
 
-prevSnapshot : Model -> Model
+prevSnapshot : Model -> Maybe Snapshot
 prevSnapshot model =
-    case List.head model.prevSnapshots of
-        Just snapshot ->
-            { model
-                | prevSnapshots = List.drop 1 model.prevSnapshots
-                , currentSnapshot = snapshot
-                , nextSnapshots = model.currentSnapshot :: model.nextSnapshots
-            }
-
-        Nothing ->
-            model
+    List.head model.prevSnapshots
 
 
-nextSnapshot : Model -> Model
+nextSnapshot : Model -> Maybe Snapshot
 nextSnapshot model =
-    case List.head model.nextSnapshots of
-        Just snapshot ->
-            { model
-                | prevSnapshots = model.currentSnapshot :: model.prevSnapshots
-                , currentSnapshot = snapshot
-                , nextSnapshots = List.drop 1 model.nextSnapshots
-            }
-
-        Nothing ->
-            model
+    List.head model.nextSnapshots
 
 
 
@@ -103,14 +87,42 @@ type Msg
     | NextSnapshot
 
 
+moveToPrevSnapshot : Model -> Model
+moveToPrevSnapshot model =
+    case prevSnapshot model of
+        Just snapshot ->
+            { model
+                | prevSnapshots = List.drop 1 model.prevSnapshots
+                , currentSnapshot = snapshot
+                , nextSnapshots = model.currentSnapshot :: model.nextSnapshots
+            }
+
+        Nothing ->
+            model
+
+
+moveToNextSnapshot : Model -> Model
+moveToNextSnapshot model =
+    case nextSnapshot model of
+        Just snapshot ->
+            { model
+                | prevSnapshots = model.currentSnapshot :: model.prevSnapshots
+                , currentSnapshot = snapshot
+                , nextSnapshots = List.drop 1 model.nextSnapshots
+            }
+
+        Nothing ->
+            model
+
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         PrevSnapshot ->
-            prevSnapshot model
+            moveToPrevSnapshot model
 
         NextSnapshot ->
-            nextSnapshot model
+            moveToNextSnapshot model
 
 
 
@@ -119,44 +131,95 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ class "container" ]
         [ viewSnapshot model.currentSnapshot
-        , viewControls
+        , viewControls model
         ]
 
 
 viewSnapshot : Snapshot -> Html Msg
 viewSnapshot snapshot =
-    section []
-        [ div [] [ text snapshot.referenceDate ]
+    section [ class "current-snapshot" ]
+        [ h2 [] [ text snapshot.referenceDate ]
         , viewSnapshotEntries snapshot.entries
-        , viewSnapshotTotal (snapshotTotal snapshot)
         ]
 
 
 viewSnapshotEntries : List SnapshotEntry -> Html Msg
 viewSnapshotEntries entries =
-    ul [] (List.map viewSnapshotEntryItem entries)
+    let
+        header =
+            thead [ class "thead-dark" ]
+                [ th [ class "bucket-name" ] [ text "Bucket" ]
+                , th [ class "value" ] [ text "Valor" ]
+                ]
+
+        body =
+            tbody [] (entries |> List.map viewSnapshotEntryItem)
+
+        footer =
+            tfoot [] [ viewSnapshotTotal <| snapshotTotal entries ]
+    in
+        div []
+            [ table [ class "table table-sm table-striped" ]
+                [ header
+                , body
+                , footer
+                ]
+            ]
 
 
 viewSnapshotEntryItem : SnapshotEntry -> Html Msg
 viewSnapshotEntryItem entry =
-    li []
-        [ span [] [ text entry.bucketName ]
-        , span [] [ text "  -  " ]
-        , span [] [ text (toString entry.value) ]
+    tr []
+        [ td [ class "bucket-name" ] [ text entry.bucketName ]
+        , td [ class "value" ] [ text <| format entry.value ]
         ]
 
 
 viewSnapshotTotal : Float -> Html Msg
 viewSnapshotTotal total =
-    div []
-        [ text ("Total  -  " ++ toString total) ]
-
-
-viewControls : Html Msg
-viewControls =
-    div []
-        [ a [ href "#", onClick PrevSnapshot ] [ text "«" ]
-        , a [ href "#", onClick NextSnapshot ] [ text "»" ]
+    tr [ class "table-info" ]
+        [ td [ class "bucket-name" ] [ text "Total" ]
+        , td [ class "value" ] [ text <| format total ]
         ]
+
+
+viewControls : Model -> Html Msg
+viewControls model =
+    div [ class "controls" ]
+        [ viewControlPrev model
+        , viewControlNext model
+        ]
+
+
+viewControlPrev : Model -> Html Msg
+viewControlPrev model =
+    case prevSnapshot model of
+        Just snapshot ->
+            a [ href "#", onClick PrevSnapshot ]
+                [ text <| "« " ++ snapshot.referenceDate ]
+
+        Nothing ->
+            div [] []
+
+
+viewControlNext : Model -> Html Msg
+viewControlNext model =
+    case nextSnapshot model of
+        Just snapshot ->
+            a [ href "#", onClick NextSnapshot ]
+                [ text <| snapshot.referenceDate ++ " »" ]
+
+        Nothing ->
+            div [] []
+
+
+locale : FormatNumber.Locales.Locale
+locale =
+    { spanishLocale | decimals = 2 }
+
+
+format : Float -> String
+format number =
+    FormatNumber.format locale number

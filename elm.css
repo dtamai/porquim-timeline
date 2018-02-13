@@ -1,0 +1,37 @@
+body {
+    background: #fffff8;
+}
+a {
+    text-decoration: underline;
+    color: inherit;
+}
+.container {
+    padding-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+.current-snapshot {
+    width: 20rem;
+}
+.current-snapshot table {
+    width: 100%;
+}
+.current-snapshot h2 {
+    text-align: center;
+}
+.current-snapshot tfoot {
+    font-weight: bold;
+}
+.current-snapshot .value {
+    text-align: right;
+}
+.controls {
+    position: absolute;
+    top: 3rem;
+    display: flex;
+    justify-content: space-between;
+    min-width: 20rem;
+}
+.controls a {
+    font-size: 1rem;
+}
