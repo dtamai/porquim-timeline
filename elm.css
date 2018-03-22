@@ -37,7 +37,7 @@ a {
 .controls a {
     font-size: 1rem;
 }
-.snapshot--ref__input {
+.snapshot--ref-input {
     width: 50%;
     min-width: 10rem;
     margin-bottom: 8px;

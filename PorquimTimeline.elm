@@ -270,7 +270,7 @@ viewSnapshotForm snapshot =
         [ div [ class "snapshot--ref" ]
             [ input
                 [ type_ "text"
-                , class "form-control snapshot--ref__input"
+                , class "form-control snapshot--ref-input"
                 , placeholder "Ref."
                 , onInput EntryRefDateInput
                 ]
