@@ -1,8 +1,9 @@
 module PorquimTimeline exposing (..)
 
+import Array exposing (Array)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (spanishLocale)
 
@@ -22,49 +23,77 @@ main =
 
 type alias Snapshot =
     { referenceDate : String
-    , entries : List SnapshotEntry
+    , entries : Array SnapshotEntry
     }
 
 
 type alias SnapshotEntry =
     { bucketName : String
-    , value : Float
+    , value : String
     }
+
+
+setBucketName : String -> SnapshotEntry -> SnapshotEntry
+setBucketName bucketName entry =
+    { entry | bucketName = bucketName }
+
+
+setEntryValue : String -> SnapshotEntry -> SnapshotEntry
+setEntryValue value entry =
+    { entry | value = value }
+
+
+type Operation
+    = ShowSnapshot
+    | AddNewSnapshot
 
 
 type alias Model =
     { prevSnapshots : List Snapshot
     , currentSnapshot : Snapshot
     , nextSnapshots : List Snapshot
+    , newSnapshot : Snapshot
+    , operation : Operation
     }
 
 
 initialModel : Model
 initialModel =
     Model
-        [ (Snapshot "Dez/17"
-            [ SnapshotEntry "Bucket A" 1123.45
-            , SnapshotEntry "Bucket B" 2234.56
-            ]
+        [ (Snapshot
+            "Dez/17"
+            (Array.fromList
+                [ SnapshotEntry "Bucket A" "1123.45"
+                , SnapshotEntry "Bucket B" "2234.56"
+                ]
+            )
           )
         ]
-        (Snapshot "Jan/18"
-            [ SnapshotEntry "Bucket A" 1234.56
-            , SnapshotEntry "Bucket B" 2345.67
-            ]
+        (Snapshot
+            "Jan/18"
+            (Array.fromList
+                [ SnapshotEntry "Bucket A" "1234.56"
+                , SnapshotEntry "Bucket B" "2345.67"
+                ]
+            )
         )
-        [ (Snapshot "Fev/18"
-            [ SnapshotEntry "Bucket A" 1345.67
-            , SnapshotEntry "Bucket B" 2456.78
-            ]
+        [ (Snapshot
+            "Fev/18"
+            (Array.fromList
+                [ SnapshotEntry "Bucket A" "1345.67"
+                , SnapshotEntry "Bucket B" "2456.78"
+                ]
+            )
           )
         ]
+        (Snapshot "" Array.empty)
+        ShowSnapshot
 
 
 snapshotTotal : List SnapshotEntry -> Float
 snapshotTotal entries =
     entries
-        |> List.map .value
+        |> List.map (\e -> Result.withDefault 0 (String.toFloat e.value))
         |> List.sum
 
 
@@ -85,6 +114,11 @@ nextSnapshot model =
 type Msg
     = PrevSnapshot
     | NextSnapshot
+    | EnterNewSnapshot
+    | LeaveNewSnapshot
+    | EntryRefDateInput String
+    | EntryBucketInput Int String
+    | EntryValueInput Int String
 
 
 moveToPrevSnapshot : Model -> Model
@@ -95,6 +129,7 @@ moveToPrevSnapshot model =
                 | prevSnapshots = List.drop 1 model.prevSnapshots
                 , currentSnapshot = snapshot
                 , nextSnapshots = model.currentSnapshot :: model.nextSnapshots
+                , operation = ShowSnapshot
             }
 
         Nothing ->
@@ -109,10 +144,21 @@ moveToNextSnapshot model =
                 | prevSnapshots = model.currentSnapshot :: model.prevSnapshots
                 , currentSnapshot = snapshot
                 , nextSnapshots = List.drop 1 model.nextSnapshots
+                , operation = ShowSnapshot
             }
 
         Nothing ->
             model
+
+
+openNewSnapshotForm : Model -> Model
+openNewSnapshotForm model =
+    { model | operation = AddNewSnapshot }
+
+
+closeNewSnapshotForm : Model -> Model
+closeNewSnapshotForm model =
+    { model | operation = ShowSnapshot }
 
 
 update : Msg -> Model -> Model
@@ -124,6 +170,68 @@ update msg model =
         NextSnapshot ->
             moveToNextSnapshot model
 
+        EnterNewSnapshot ->
+            openNewSnapshotForm model
+
+        LeaveNewSnapshot ->
+            closeNewSnapshotForm model
+
+        EntryRefDateInput refDate ->
+            let
+                newSnapshot =
+                    model.newSnapshot
+
+                newNewSnapshot =
+                    { newSnapshot | referenceDate = refDate }
+            in
+                { model | newSnapshot = newNewSnapshot }
+
+        EntryBucketInput entryIdx bucketName ->
+            let
+                newSnapshot =
+                    model.newSnapshot
+
+                entry =
+                    Array.get entryIdx newSnapshot.entries
+
+                newEntries =
+                    case entry of
+                        Just entry ->
+                            Array.set entryIdx (entry |> setBucketName bucketName) newSnapshot.entries
+
+                        Nothing ->
+                            Array.push (SnapshotEntry bucketName "0") newSnapshot.entries
+
+                newNewSnapshot =
+                    { newSnapshot
+                        | entries = newEntries
+                    }
+            in
+                { model | newSnapshot = newNewSnapshot }
+
+        EntryValueInput entryIdx value ->
+            let
+                newSnapshot =
+                    model.newSnapshot
+
+                entry =
+                    Array.get entryIdx newSnapshot.entries
+
+                newEntries =
+                    case entry of
+                        Just entry ->
+                            Array.set entryIdx (entry |> setEntryValue value) newSnapshot.entries
+
+                        Nothing ->
+                            Array.push (SnapshotEntry "" value) newSnapshot.entries
+
+                newNewSnapshot =
+                    { newSnapshot
+                        | entries = newEntries
+                    }
+            in
+                { model | newSnapshot = newNewSnapshot }
+
 
 
 -- VIEW
@@ -131,18 +239,94 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "container" ]
-        [ viewSnapshot model.currentSnapshot
-        , viewControls model
-        ]
+    let
+        mainSectionView =
+            case model.operation of
+                ShowSnapshot ->
+                    [ viewSnapshot model.currentSnapshot
+                    , viewControls <| viewControlsPrevNext model
+                    ]
+
+                AddNewSnapshot ->
+                    [ viewSnapshotForm model.newSnapshot
+                    , viewControls viewControlCancelNewSnapshot
+                    ]
+    in
+        div [ class "container" ]
+            mainSectionView
 
 
 viewSnapshot : Snapshot -> Html Msg
 viewSnapshot snapshot =
-    section [ class "current-snapshot" ]
-        [ h2 [] [ text snapshot.referenceDate ]
-        , viewSnapshotEntries snapshot.entries
+    section [ class "snapshot" ]
+        [ h2 [ class "snapshot--ref" ] [ text snapshot.referenceDate ]
+        , viewSnapshotEntries (Array.toList snapshot.entries)
         ]
+
+
+viewSnapshotForm : Snapshot -> Html Msg
+viewSnapshotForm snapshot =
+    section [ class "snapshot" ]
+        [ div [ class "snapshot--ref" ]
+            [ input
+                [ type_ "text"
+                , class "form-control snapshot--ref-input"
+                , placeholder "Ref."
+                , onInput EntryRefDateInput
+                ]
+                []
+            ]
+        , viewSnapshotFormEntries snapshot
+        ]
+
+
+viewSnapshotFormEntries : Snapshot -> Html Msg
+viewSnapshotFormEntries snapshot =
+    let
+        entry =
+            Maybe.withDefault (SnapshotEntry "" "") (Array.get 0 snapshot.entries)
+
+        value_ =
+            if entry.value == "0" then
+                ""
+            else
+                entry.value
+
+        header =
+            thead [ class "thead-dark" ]
+                [ th [ class "bucket-name" ] [ text "Bucket" ]
+                , th [ class "value" ] [ text "Valor" ]
+                ]
+
+        body =
+            tbody []
+                [ tr []
+                    [ td []
+                        [ input
+                            [ type_ "text"
+                            , class "form-control bucket-name"
+                            , onInput (EntryBucketInput 0)
+                            , value entry.bucketName
+                            ]
+                            []
+                        ]
+                    , td []
+                        [ input
+                            [ type_ "text"
+                            , class "form-control value"
+                            , placeholder "R$"
+                            , onInput (EntryValueInput 0)
+                            , value value_
+                            ]
+                            []
+                        ]
+                    ]
+                ]
+    in
+        table [ class "table table-sm table-striped" ]
+            [ header
+            , body
+            ]
 
 
 viewSnapshotEntries : List SnapshotEntry -> Html Msg
@@ -181,16 +365,21 @@ viewSnapshotTotal : Float -> Html Msg
 viewSnapshotTotal total =
     tr [ class "table-info" ]
         [ td [ class "bucket-name" ] [ text "Total" ]
-        , td [ class "value" ] [ text <| format total ]
+        , td [ class "value" ] [ text <| format (toString total) ]
         ]
 
 
-viewControls : Model -> Html Msg
-viewControls model =
+viewControls : List (Html Msg) -> Html Msg
+viewControls controls =
     div [ class "controls" ]
-        [ viewControlPrev model
-        , viewControlNext model
-        ]
+        controls
+
+
+viewControlsPrevNext : Model -> List (Html Msg)
+viewControlsPrevNext model =
+    [ viewControlPrev model
+    , viewControlNext model
+    ]
 
 
 viewControlPrev : Model -> Html Msg
@@ -212,7 +401,15 @@ viewControlNext model =
                 [ text <| snapshot.referenceDate ++ " »" ]
 
         Nothing ->
-            div [] []
+            a [ href "#", onClick EnterNewSnapshot ]
+                [ text "Novo" ]
+
+
+viewControlCancelNewSnapshot : List (Html Msg)
+viewControlCancelNewSnapshot =
+    [ a [ href "#", onClick LeaveNewSnapshot ]
+        [ text "Cancelar" ]
+    ]
 
 
 locale : FormatNumber.Locales.Locale
@@ -220,6 +417,11 @@ locale =
     { spanishLocale | decimals = 2 }
 
 
-format : Float -> String
+format : String -> String
 format number =
-    FormatNumber.format locale number
+    case String.toFloat number of
+        Ok value ->
+            FormatNumber.format locale value
+
+        Err _ ->
+            "N/A"
