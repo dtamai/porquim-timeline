@@ -247,21 +247,23 @@ view model =
 
 viewSnapshot : Snapshot -> Html Msg
 viewSnapshot snapshot =
-    section [ class "current-snapshot" ]
-        [ h2 [] [ text snapshot.referenceDate ]
+    section [ class "snapshot" ]
+        [ h2 [ class "snapshot--ref" ] [ text snapshot.referenceDate ]
         , viewSnapshotEntries (Array.toList snapshot.entries)
         ]
 
 
 viewSnapshotForm : Snapshot -> Html Msg
 viewSnapshotForm snapshot =
-    section [ class "new-snapshot" ]
-        [ input
-            [ type_ "text"
-            , class "form-control"
-            , placeholder "Ref."
+    section [ class "snapshot" ]
+        [ div [ class "snapshot--ref" ]
+            [ input
+                [ type_ "text"
+                , class "form-control snapshot--ref__input"
+                , placeholder "Ref."
+                ]
+                []
             ]
-            []
         , viewSnapshotFormEntries snapshot
         ]
 
@@ -277,33 +279,41 @@ viewSnapshotFormEntries snapshot =
                 ""
             else
                 entry.value
+
+        header =
+            thead [ class "thead-dark" ]
+                [ th [ class "bucket-name" ] [ text "Bucket" ]
+                , th [ class "value" ] [ text "Valor" ]
+                ]
+
+        body =
+            tbody []
+                [ tr []
+                    [ td []
+                        [ input
+                            [ type_ "text"
+                            , class "form-control bucket-name"
+                            , onInput (EntryBucketInput 0)
+                            , value entry.bucketName
+                            ]
+                            []
+                        ]
+                    , td []
+                        [ input
+                            [ type_ "text"
+                            , class "form-control value"
+                            , placeholder "R$"
+                            , onInput (EntryValueInput 0)
+                            , value value_
+                            ]
+                            []
+                        ]
+                    ]
+                ]
     in
-        div []
-            [ div [ class "form-row" ]
-                [ div [ class "col" ] [ text "Bucket" ]
-                , div [ class "col" ] [ text "Valor" ]
-                ]
-            , div [ class "form-row" ]
-                [ div [ class "col" ]
-                    [ input
-                        [ type_ "text"
-                        , class "form-control"
-                        , onInput (EntryBucketInput 0)
-                        , value entry.bucketName
-                        ]
-                        []
-                    ]
-                , div [ class "col" ]
-                    [ input
-                        [ type_ "text"
-                        , class "form-control"
-                        , placeholder "R$"
-                        , onInput (EntryValueInput 0)
-                        , value value_
-                        ]
-                        []
-                    ]
-                ]
+        table [ class "table table-sm table-striped" ]
+            [ header
+            , body
             ]
 
 
