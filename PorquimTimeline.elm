@@ -116,6 +116,7 @@ type Msg
     | NextSnapshot
     | EnterNewSnapshot
     | LeaveNewSnapshot
+    | EntryRefDateInput String
     | EntryBucketInput Int String
     | EntryValueInput Int String
 
@@ -174,6 +175,16 @@ update msg model =
 
         LeaveNewSnapshot ->
             closeNewSnapshotForm model
+
+        EntryRefDateInput refDate ->
+            let
+                newSnapshot =
+                    model.newSnapshot
+
+                newNewSnapshot =
+                    { newSnapshot | referenceDate = refDate }
+            in
+                { model | newSnapshot = newNewSnapshot }
 
         EntryBucketInput entryIdx bucketName ->
             let
@@ -261,6 +272,7 @@ viewSnapshotForm snapshot =
                 [ type_ "text"
                 , class "form-control snapshot--ref__input"
                 , placeholder "Ref."
+                , onInput EntryRefDateInput
                 ]
                 []
             ]
