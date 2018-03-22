@@ -9,10 +9,10 @@ npm install
 ```
 
 ## Running
-Use the _start_ script from _package.json_ to start a _elm-live_ session:
+Use the _dev_ script from _package.json_ to start a _elm-live_ session:
 
 ```
-npm start
+npm run dev
 ```
 
 To stop use CTRL+c.
